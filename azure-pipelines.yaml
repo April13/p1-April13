@@ -11,7 +11,6 @@ stages:
           vmImage: ubuntu-18.04
         steps:
           - script: dotnet build
-            workingDirectory: $(System.DefaultWorkingDirectory)/p1-project
 
   - stage: test
     jobs:
@@ -20,7 +19,7 @@ stages:
           vmImage: ubuntu-18.04
         steps:
           - script: dotnet test --collect:"XPlat Code Coverage"
-            workingDirectory: ./p1-project
+            
 
   - stage: pack
     jobs:
@@ -31,9 +30,8 @@ stages:
           - script: |
               docker login
               docker image build -f dockerfile -t april13/p1proj .
-              docker image push fredbelotte/p1proj
+              docker image push april13/p1proj
               docker logout
-            workingDirectory: ./p1-project
 
 trigger:
   - master
