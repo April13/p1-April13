@@ -22,19 +22,65 @@ stages:
           - script: dotnet test --collect:"XPlat Code Coverage"
             workingDirectory: .
             
-
+  - stage: analyze
+    jobs:
+      - job:
+        pool:
+          vmImage: ubuntu-18.04
+        steps:
+          - task: DotnetGlobalToolInstaller@0
+            inputs:
+              name: "dotnet-sonarscanner"
+          - script: |
+              dotnet sonarscanner begin /k:"." /o:"p1-April13" /d:sonar.login="$SONAR_LOGIN" /d:sonar.host.url=https://sonarcloud.io
+              dotnet build
+              dotnet test --collect:"XPlat Code Coverage"
+              dotnet sonarscanner end /d:sonar.login="$SONAR_LOGIN"
+            workingDirectory: $(working_dir)
+            env:
+              SONAR_LOGIN: $(sonar_login)
+  
   - stage: pack
     jobs:
       - job:
         pool:
           vmImage: ubuntu-18.04
         steps:
+          - task: Docker@2
+            inputs:
+              containerRegistry: "docker"
+              command: "login"
           - script: |
-              docker login
-              docker image build -f dockerfile -t april13/p1proj .
-              docker image push april13/p1proj
-              docker logout
-            workingDirectory: .
+              docker image build -f dockerfile -t $DOCKER_IMAGE .
+              docker image push $DOCKER_IMAGE
+            workingDirectory: $(working_dir)
+            env:
+              DOCKER_IMAGE: $(image_name)
+          - task: Docker@2
+            inputs:
+              containerRegistry: "docker"
+              command: "logout"
+
+  - stage: deploy
+    jobs:
+      - job:
+        pool:
+          vmImage: ubuntu-18.04
+        steps:
+          - task: AzureRmWebAppDeployment@4
+            inputs:
+              ConnectionType: "AzureRM"
+              azureSubscription: "april(0ad1e887-b0b8-4418-891c-f922c2a0e079)"
+              appType: "webAppContainer"
+              WebAppName: "pizzabox"
+              DockerNamespace: "april13"
+              DockerRepository: "p1proj"
 
 trigger:
   - master
+
+variables:
+  - name: image_name
+    value: april13/p1-april13
+  - name: working_dir
+    value: $(System.DefaultWorkingDirectory)
